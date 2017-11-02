@@ -50,7 +50,7 @@ export class FitToScreenAction implements Action {
 export abstract class BoundsAwareViewportCommand extends Command {
 
     oldViewport: Viewport
-    newViewport: Viewport
+    newViewport?: Viewport
 
     constructor(protected readonly animate: boolean) {
         super()
@@ -87,7 +87,7 @@ export abstract class BoundsAwareViewportCommand extends Command {
                 )
             }
             const bounds = allBounds.reduce((b0, b1) => b0 === undefined ? b1 : combine(b0, b1), undefined)
-            if (isValidDimension(bounds))
+            if (bounds !== undefined && isValidDimension(bounds))
                 this.newViewport = this.getNewViewport(bounds, model)
         }
     }
@@ -99,7 +99,7 @@ export abstract class BoundsAwareViewportCommand extends Command {
             return bounds
     }
 
-    protected abstract getNewViewport(bounds: Bounds, model: SModelRoot): Viewport
+    protected abstract getNewViewport(bounds: Bounds, model: SModelRoot): Viewport | undefined
 
     protected abstract getElementIds(): string[]
 
@@ -110,7 +110,7 @@ export abstract class BoundsAwareViewportCommand extends Command {
 
     undo(context: CommandExecutionContext) {
         const model = context.root
-        if (isViewport(model) && this.newViewport && !this.equal(this.newViewport, this.oldViewport)) {
+        if (isViewport(model) && this.newViewport !== undefined && !this.equal(this.newViewport, this.oldViewport)) {
             if (this.animate)
                 return new ViewportAnimation(model, this.newViewport, this.oldViewport, context).start()
             else {
@@ -123,7 +123,7 @@ export abstract class BoundsAwareViewportCommand extends Command {
 
     redo(context: CommandExecutionContext) {
         const model = context.root
-        if (isViewport(model) && this.newViewport && !this.equal(this.newViewport, this.oldViewport)) {
+        if (isViewport(model) && this.newViewport !== undefined && !this.equal(this.newViewport, this.oldViewport)) {
             if (this.animate) {
                return new ViewportAnimation(model, this.oldViewport, this.newViewport, context).start()
             } else {
@@ -150,7 +150,10 @@ export class CenterCommand extends BoundsAwareViewportCommand {
         return this.action.elementIds
     }
 
-    getNewViewport(bounds: Bounds, model: SModelRoot) {
+    getNewViewport(bounds: Bounds, model: SModelRoot): Viewport | undefined {
+        if (!isValidDimension(model.canvasBounds)) {
+            return undefined
+        }
         const c = center(bounds)
         return {
             scroll: {
@@ -173,7 +176,10 @@ export class FitToScreenCommand extends BoundsAwareViewportCommand {
         return this.action.elementIds
     }
 
-    getNewViewport(bounds: Bounds, model: SModelRoot) {
+    getNewViewport(bounds: Bounds, model: SModelRoot): Viewport | undefined {
+        if (!isValidDimension(model.canvasBounds)) {
+            return undefined
+        }
         const c = center(bounds)
         const delta = this.action.padding === undefined
             ? 0
